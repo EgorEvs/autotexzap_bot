@@ -107,18 +107,13 @@ def handle_contact(message):
     fio = f"{client.get('surname', '')} {client.get('name', '')}".strip()
     office = client.get('officeName', 'не указано')
 
-    bot.send_message(manager_id,
-        f"📩 Новое сообщение от клиента:
+    bot.send_message(manager_id, f"""📩 Новое сообщение от клиента:
 
-"
-        f"👤 Имя: {fio}
-"
-        f"📞 Телефон: {phone}
-"
-        f"🏢 Точка: {office}
-"
-        f"🆔 Telegram ID клиента: {user_id}"
-    )
+👤 Имя: {fio}
+📞 Телефон: {phone}
+🏢 Точка: {office}
+🆔 Telegram ID клиента: {user_id}
+""")
     bot.send_message(manager_id, f"(Выше — информация о клиенте)")
 
     old_links[str(user_id)] = manager_id
