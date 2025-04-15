@@ -28,8 +28,12 @@ def save_managers(data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def format_phone_to_database_style(phone):
-    phone = phone.strip()
-    if phone.startswith('+7') and len(phone) == 12:
+    phone = phone.strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    if phone.startswith("8"):
+        phone = "+7" + phone[1:]
+    elif phone.startswith("7") and not phone.startswith("+7"):
+        phone = "+7" + phone[1:]
+    if phone.startswith("+7") and len(phone) == 12:
         code = phone[2:5]
         part1 = phone[5:8]
         part2 = phone[8:10]
@@ -85,15 +89,10 @@ def handle_contact(message):
     office = client.get('officeName', 'не указано')
 
     bot.send_message(manager_id,
-        f"Новое сообщение от клиента:
-
-"
-        f"Имя: {fio}
-"
-        f"Телефон: {phone}
-"
-        f"Точка: {office}
-"
+        f"Новое сообщение от клиента:\n\n"
+        f"Имя: {fio}\n"
+        f"Телефон: {phone}\n"
+        f"Точка: {office}\n"
         f"Telegram ID: {user_id}"
     )
     bot.send_message(manager_id, f"(Сообщение выше пришло от клиента)")
@@ -132,8 +131,7 @@ def register_manager(message):
 
     bot.reply_to(
         message,
-        f"Вы зарегистрированы как менеджер: {name} ({login})
-Точка: {office}"
+        f"Вы зарегистрированы как менеджер: {name} ({login})\nТочка: {office}"
     )
 
 @bot.message_handler(func=lambda m: True)
