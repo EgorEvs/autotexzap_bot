@@ -93,7 +93,7 @@ def stop_dialog(message):
         waiting_clients = [uid for uid, mgr in links.items() if mgr == int(mid) and uid != mid]
         if waiting_clients:
             bot.send_message(mid, f"🕒 Ожидает клиент {waiting_clients[0]}.
-Напишите /clients чтобы выбрать.", reply_markup=manager_keyboard())
+        bot.send_message(mid, f"🕒 Ожидает клиент {waiting_clients[0]}. Напишите /clients чтобы выбрать.", reply_markup=manager_keyboard())
     else:
         bot.send_message(message.chat.id, "Нет активного диалога.", reply_markup=manager_keyboard())
 
