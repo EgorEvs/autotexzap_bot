@@ -54,11 +54,11 @@ def get_manager_info(manager_id):
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    button = types.KeyboardButton("РћС‚РїСЂР°РІРёС‚СЊ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР°", request_contact=True)
+    button = types.KeyboardButton("Отправить номер телефона", request_contact=True)
     markup.add(button)
     bot.send_message(
         message.chat.id,
-        "Р§С‚РѕР±С‹ РЅР°С‡Р°С‚СЊ, РЅР°Р¶РјРёС‚Рµ РєРЅРѕРїРєСѓ РЅРёР¶Рµ Рё РѕС‚РїСЂР°РІСЊС‚Рµ СЃРІРѕР№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР°:",
+        "Чтобы начать, нажмите кнопку ниже и отправьте свой номер телефона:",
         reply_markup=markup
     )
 
@@ -70,7 +70,7 @@ def handle_contact(message):
     client = get_client_info(phone)
 
     if not client:
-        bot.send_message(user_id, f"РљР»РёРµРЅС‚ СЃ С‚Р°РєРёРј РЅРѕРјРµСЂРѕРј РЅРµ РЅР°Р№РґРµРЅ: {phone}")
+        bot.send_message(user_id, f"Клиент с таким номером не найден: {phone}")
         return
 
     manager_login = client.get('managerLogin')
@@ -78,39 +78,39 @@ def handle_contact(message):
     manager_id = managers.get(manager_login)
 
     if not manager_id:
-        bot.send_message(user_id, f"РњРµРЅРµРґР¶РµСЂ ({manager_login}) РїРѕРєР° РЅРµ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅ РІ Telegram.")
+        bot.send_message(user_id, f"Менеджер ({manager_login}) пока не зарегистрирован в Telegram.")
         return
 
     fio = f"{client.get('surname', '')} {client.get('name', '')}".strip()
-    office = client.get('officeName', 'РЅРµ СѓРєР°Р·Р°РЅРѕ')
+    office = client.get('officeName', 'не указано')
 
     bot.send_message(manager_id,
-        f"РќРѕРІРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ РѕС‚ РєР»РёРµРЅС‚Р°:\n\n"
-        f"РРјСЏ: {fio}\n"
-        f"РўРµР»РµС„РѕРЅ: {phone}\n"
-        f"РўРѕС‡РєР°: {office}\n"
+        f"Новое сообщение от клиента:\n\n"
+        f"Имя: {fio}\n"
+        f"Телефон: {phone}\n"
+        f"Точка: {office}\n"
         f"Telegram ID: {user_id}"
     )
-    bot.send_message(manager_id, f"(РЎРѕРѕР±С‰РµРЅРёРµ РІС‹С€Рµ РїСЂРёС€Р»Рѕ РѕС‚ РєР»РёРµРЅС‚Р°)")
+    bot.send_message(manager_id, f"(Сообщение выше пришло от клиента)")
 
     links = load_links()
     links[str(user_id)] = manager_id
     links[str(manager_id)] = user_id
     save_links(links)
 
-    bot.send_message(user_id, f"Р’С‹ РїРѕРґРєР»СЋС‡РµРЅС‹ Рє РјРµРЅРµРґР¶РµСЂСѓ {manager_login} ({office}). РњРѕР¶РµС‚Рµ РїСЂРѕРґРѕР»Р¶РёС‚СЊ РѕР±С‰РµРЅРёРµ.")
+    bot.send_message(user_id, f"Вы подключены к менеджеру {manager_login} ({office}). Можете продолжить общение.")
 
 @bot.message_handler(commands=['register'])
 def register_manager(message):
     try:
         manager_id = int(message.text.split(' ')[1])
     except (IndexError, ValueError):
-        bot.reply_to(message, "РЈРєР°Р¶РёС‚Рµ ID РјРµРЅРµРґР¶РµСЂР°, РїСЂРёРјРµСЂ: /register 12")
+        bot.reply_to(message, "Укажите ID менеджера, пример: /register 12")
         return
 
     data = get_manager_info(manager_id)
     if not data:
-        bot.reply_to(message, "РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РґР°РЅРЅС‹С… РјРµРЅРµРґР¶РµСЂР°.")
+        bot.reply_to(message, "Ошибка при получении данных менеджера.")
         return
 
     login = data.get("managerLogin")
@@ -118,7 +118,7 @@ def register_manager(message):
     office = data.get("officeName")
 
     if not login:
-        bot.reply_to(message, "Р›РѕРіРёРЅ РјРµРЅРµРґР¶РµСЂР° РЅРµ РЅР°Р№РґРµРЅ.")
+        bot.reply_to(message, "Логин менеджера не найден.")
         return
 
     managers = load_managers()
@@ -127,7 +127,7 @@ def register_manager(message):
 
     bot.reply_to(
         message,
-        f"Р’С‹ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅС‹ РєР°Рє РјРµРЅРµРґР¶РµСЂ: {name} ({login})\nРўРѕС‡РєР°: {office}"
+        f"Вы зарегистрированы как менеджер: {name} ({login})\nТочка: {office}"
     )
 
 @bot.message_handler(func=lambda m: True)
@@ -139,6 +139,6 @@ def handle_chat(message):
         peer_id = links[user_id]
         bot.copy_message(peer_id, message.chat.id, message.message_id)
     else:
-        bot.send_message(message.chat.id, "РЎРЅР°С‡Р°Р»Р° РѕС‚РїСЂР°РІСЊС‚Рµ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° С‡РµСЂРµР· /start.")
+        bot.send_message(message.chat.id, "Сначала отправьте номер телефона через /start.")
 
 bot.polling()
