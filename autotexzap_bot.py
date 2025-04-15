@@ -1,6 +1,5 @@
 import telebot
 import requests
-import re
 import json
 import os
 from telebot import types
@@ -28,8 +27,15 @@ def save_managers(data):
     with open(MANAGER_FILE, 'w') as f:
         json.dump(data, f, indent=2)
 
-def normalize_phone(phone):
-    return re.sub(r'\D', '', phone)
+def format_phone_to_database_style(phone):
+    phone = phone.strip()
+    if phone.startswith('+7') and len(phone) == 12:
+        code = phone[2:5]
+        part1 = phone[5:8]
+        part2 = phone[8:10]
+        part3 = phone[10:]
+        return f'+7({code}){part1}-{part2}-{part3}'
+    return phone
 
 def get_client_info(phone):
     try:
@@ -48,22 +54,23 @@ def get_manager_info(manager_id):
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    button = types.KeyboardButton("Отправить номер телефона", request_contact=True)
+    button = types.KeyboardButton("РћС‚РїСЂР°РІРёС‚СЊ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР°", request_contact=True)
     markup.add(button)
     bot.send_message(
         message.chat.id,
-        "Чтобы начать, нажмите кнопку ниже и отправьте свой номер телефона:",
+        "Р§С‚РѕР±С‹ РЅР°С‡Р°С‚СЊ, РЅР°Р¶РјРёС‚Рµ РєРЅРѕРїРєСѓ РЅРёР¶Рµ Рё РѕС‚РїСЂР°РІСЊС‚Рµ СЃРІРѕР№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР°:",
         reply_markup=markup
     )
 
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
-    phone = message.contact.phone_number
+    raw_phone = message.contact.phone_number
+    phone = format_phone_to_database_style(raw_phone)
     user_id = message.chat.id
     client = get_client_info(phone)
 
     if not client:
-        bot.send_message(user_id, "Клиент с таким номером не найден.")
+        bot.send_message(user_id, f"РљР»РёРµРЅС‚ СЃ С‚Р°РєРёРј РЅРѕРјРµСЂРѕРј РЅРµ РЅР°Р№РґРµРЅ: {phone}")
         return
 
     manager_login = client.get('managerLogin')
@@ -71,39 +78,39 @@ def handle_contact(message):
     manager_id = managers.get(manager_login)
 
     if not manager_id:
-        bot.send_message(user_id, f"Менеджер ({manager_login}) пока не зарегистрирован в Telegram.")
+        bot.send_message(user_id, f"РњРµРЅРµРґР¶РµСЂ ({manager_login}) РїРѕРєР° РЅРµ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅ РІ Telegram.")
         return
 
     fio = f"{client.get('surname', '')} {client.get('name', '')}".strip()
-    office = client.get('officeName', 'не указано')
+    office = client.get('officeName', 'РЅРµ СѓРєР°Р·Р°РЅРѕ')
 
     bot.send_message(manager_id,
-        f"Новое сообщение от клиента:\n\n"
-        f"Имя: {fio}\n"
-        f"Телефон: {phone}\n"
-        f"Точка: {office}\n"
+        f"РќРѕРІРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ РѕС‚ РєР»РёРµРЅС‚Р°:\n\n"
+        f"РРјСЏ: {fio}\n"
+        f"РўРµР»РµС„РѕРЅ: {phone}\n"
+        f"РўРѕС‡РєР°: {office}\n"
         f"Telegram ID: {user_id}"
     )
-    bot.send_message(manager_id, f"(Сообщение выше пришло от клиента)")
+    bot.send_message(manager_id, f"(РЎРѕРѕР±С‰РµРЅРёРµ РІС‹С€Рµ РїСЂРёС€Р»Рѕ РѕС‚ РєР»РёРµРЅС‚Р°)")
 
     links = load_links()
     links[str(user_id)] = manager_id
     links[str(manager_id)] = user_id
     save_links(links)
 
-    bot.send_message(user_id, f"Вы подключены к менеджеру {manager_login} ({office}). Можете продолжить общение.")
+    bot.send_message(user_id, f"Р’С‹ РїРѕРґРєР»СЋС‡РµРЅС‹ Рє РјРµРЅРµРґР¶РµСЂСѓ {manager_login} ({office}). РњРѕР¶РµС‚Рµ РїСЂРѕРґРѕР»Р¶РёС‚СЊ РѕР±С‰РµРЅРёРµ.")
 
 @bot.message_handler(commands=['register'])
 def register_manager(message):
     try:
         manager_id = int(message.text.split(' ')[1])
     except (IndexError, ValueError):
-        bot.reply_to(message, "Укажите ID менеджера, пример: /register 12")
+        bot.reply_to(message, "РЈРєР°Р¶РёС‚Рµ ID РјРµРЅРµРґР¶РµСЂР°, РїСЂРёРјРµСЂ: /register 12")
         return
 
     data = get_manager_info(manager_id)
     if not data:
-        bot.reply_to(message, "Ошибка при получении данных менеджера.")
+        bot.reply_to(message, "РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РґР°РЅРЅС‹С… РјРµРЅРµРґР¶РµСЂР°.")
         return
 
     login = data.get("managerLogin")
@@ -111,7 +118,7 @@ def register_manager(message):
     office = data.get("officeName")
 
     if not login:
-        bot.reply_to(message, "Логин менеджера не найден.")
+        bot.reply_to(message, "Р›РѕРіРёРЅ РјРµРЅРµРґР¶РµСЂР° РЅРµ РЅР°Р№РґРµРЅ.")
         return
 
     managers = load_managers()
@@ -120,7 +127,7 @@ def register_manager(message):
 
     bot.reply_to(
         message,
-        f"Вы зарегистрированы как менеджер: {name} ({login})\nТочка: {office}"
+        f"Р’С‹ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅС‹ РєР°Рє РјРµРЅРµРґР¶РµСЂ: {name} ({login})\nРўРѕС‡РєР°: {office}"
     )
 
 @bot.message_handler(func=lambda m: True)
@@ -132,6 +139,6 @@ def handle_chat(message):
         peer_id = links[user_id]
         bot.copy_message(peer_id, message.chat.id, message.message_id)
     else:
-        bot.send_message(message.chat.id, "Сначала отправьте номер телефона через /start.")
+        bot.send_message(message.chat.id, "РЎРЅР°С‡Р°Р»Р° РѕС‚РїСЂР°РІСЊС‚Рµ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° С‡РµСЂРµР· /start.")
 
 bot.polling()
