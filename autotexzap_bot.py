@@ -21,12 +21,29 @@ def save_json_file(data, filename):
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+@bot.message_handler(commands=['help'])
+def help_cmd(message):
+    is_manager = str(message.chat.id) in load_json_file(MANAGER_FILE).values()
+    text = "📖 <b>Доступные команды:</b>
+"
+    if is_manager:
+        text += "/clients - список клиентов
+/stop - завершить текущий диалог"
+    else:
+        text += "/start - начать работу
+Отправьте номер телефона для подключения"
+    bot.send_message(message.chat.id, text, parse_mode="HTML")
+
 @bot.message_handler(commands=['start'])
 def start(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    button = types.KeyboardButton("Отправить номер телефона", request_contact=True)
-    markup.add(button)
-    bot.send_message(message.chat.id, "Нажмите кнопку, чтобы отправить номер телефона:", reply_markup=markup)
+    is_manager = str(message.chat.id) in load_json_file(MANAGER_FILE).values()
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    if is_manager:
+        markup.add("🧍 Мои клиенты", "⛔ Завершить диалог")
+    else:
+        button = types.KeyboardButton("📲 Отправить номер", request_contact=True)
+        markup.add(button)
+    bot.send_message(message.chat.id, "Добро пожаловать!", reply_markup=markup)
 
 @bot.message_handler(commands=['register_login'])
 def register_login(message):
@@ -79,7 +96,7 @@ def client_start_dialog(call):
     dialogs = load_json_file(ACTIVE_DIALOGS)
     dialogs[client_id] = manager_id
     save_json_file(dialogs, ACTIVE_DIALOGS)
-    bot.send_message(call.message.chat.id, f"✅ Вы перешли в диалог с менеджером {manager_id}.")
+    bot.send_message(call.message.chat.id, f"✅ Вы перешли в диалог с менеджером.")
 
 @bot.message_handler(content_types=['contact'])
 def contact(message):
@@ -113,7 +130,7 @@ def contact(message):
     save_json_file(links, LINKS_FILE)
 
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton(f"🔁 Перейти в диалог с менеджером", callback_data=f"clientdialog:{manager_id}"))
+    markup.add(types.InlineKeyboardButton("🔁 Перейти в диалог с менеджером", callback_data=f"clientdialog:{manager_id}"))
     bot.send_message(user_id, f"✅ Вы подключены к менеджеру {manager_login} ({office}).", reply_markup=markup)
 
     manager_markup = types.InlineKeyboardMarkup()
@@ -133,12 +150,11 @@ def relay(message):
         peer_id = dialogs[user_id]
         bot.copy_message(peer_id, message.chat.id, message.message_id)
         return
-
     links = load_json_file(LINKS_FILE)
     if user_id in links:
         peer_id = links[user_id]
         bot.copy_message(peer_id, message.chat.id, message.message_id)
     else:
-        bot.send_message(message.chat.id, "Сначала отправьте номер или начните диалог.")
+        bot.send_message(message.chat.id, "ℹ️ Сначала отправьте номер или выберите клиента.")
 
 bot.polling()
