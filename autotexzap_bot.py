@@ -14,18 +14,18 @@ LINKS_FILE = 'chat_links.json'
 MANAGER_FILE = 'manager_ids.json'
 
 def load_links():
-    return json.load(open(LINKS_FILE)) if os.path.exists(LINKS_FILE) else {}
+    return json.load(open(LINKS_FILE, encoding="utf-8")) if os.path.exists(LINKS_FILE) else {}
 
 def save_links(data):
-    with open(LINKS_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+    with open(LINKS_FILE, 'w', encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 def load_managers():
-    return json.load(open(MANAGER_FILE)) if os.path.exists(MANAGER_FILE) else {}
+    return json.load(open(MANAGER_FILE, encoding="utf-8")) if os.path.exists(MANAGER_FILE) else {}
 
 def save_managers(data):
-    with open(MANAGER_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+    with open(MANAGER_FILE, 'w', encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 def format_phone_to_database_style(phone):
     phone = phone.strip()
@@ -85,10 +85,15 @@ def handle_contact(message):
     office = client.get('officeName', 'не указано')
 
     bot.send_message(manager_id,
-        f"Новое сообщение от клиента:\n\n"
-        f"Имя: {fio}\n"
-        f"Телефон: {phone}\n"
-        f"Точка: {office}\n"
+        f"Новое сообщение от клиента:
+
+"
+        f"Имя: {fio}
+"
+        f"Телефон: {phone}
+"
+        f"Точка: {office}
+"
         f"Telegram ID: {user_id}"
     )
     bot.send_message(manager_id, f"(Сообщение выше пришло от клиента)")
@@ -127,7 +132,8 @@ def register_manager(message):
 
     bot.reply_to(
         message,
-        f"Вы зарегистрированы как менеджер: {name} ({login})\nТочка: {office}"
+        f"Вы зарегистрированы как менеджер: {name} ({login})
+Точка: {office}"
     )
 
 @bot.message_handler(func=lambda m: True)
