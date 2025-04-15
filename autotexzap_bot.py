@@ -34,7 +34,6 @@ def save_managers(data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def format_phone_to_database_style(phone):
-    print(f"[DEBUG] Исходный номер: {phone}")
     phone = phone.strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
     if phone.startswith("8"):
         phone = "+7" + phone[1:]
@@ -45,19 +44,14 @@ def format_phone_to_database_style(phone):
         part1 = phone[5:8]
         part2 = phone[8:10]
         part3 = phone[10:]
-        formatted = f'+7({code}){part1}-{part2}-{part3}'
-        print(f"[DEBUG] Преобразованный номер: {formatted}")
-        return formatted
+        return f'+7({code}){part1}-{part2}-{part3}'
     return phone
 
 def get_client_info(phone):
     try:
-        print(f"[DEBUG] Запрос клиента по номеру: {phone}")
         response = requests.get(API_URL, params={'token': API_TOKEN, 'phone': phone})
-        print(f"[DEBUG] Ответ API: {response.text}")
         return response.json().get('result', [None])[0]
-    except Exception as e:
-        print(f"[ERROR] Ошибка API: {e}")
+    except:
         return None
 
 @bot.message_handler(commands=['start'])
@@ -70,20 +64,30 @@ def start(message):
         "Чтобы начать, нажмите кнопку ниже и отправьте свой номер телефона:",
         reply_markup=markup
     )
-    print(f"[INFO] Пользователь {message.chat.id} начал с /start")
+
+@bot.message_handler(commands=['register_login'])
+def register_login_manual(message):
+    try:
+        login = message.text.split(' ')[1].strip()
+    except IndexError:
+        bot.reply_to(message, "Укажите логин менеджера, пример: /register_login ivanov")
+        return
+
+    managers = load_managers()
+    managers[login] = message.chat.id
+    save_managers(managers)
+
+    bot.reply_to(message, f"Вы зарегистрированы как менеджер: {login}")
 
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
     raw_phone = message.contact.phone_number
     phone = format_phone_to_database_style(raw_phone)
     user_id = message.chat.id
-    print(f"[INFO] Пользователь {user_id} отправил номер: {raw_phone} → {phone}")
-
     client = get_client_info(phone)
 
     if not client:
         bot.send_message(user_id, f"Клиент с таким номером не найден: {phone}")
-        print(f"[INFO] Клиент не найден: {phone}")
         return
 
     manager_login = client.get('managerLogin')
@@ -92,28 +96,31 @@ def handle_contact(message):
 
     if not manager_id:
         bot.send_message(user_id, f"Менеджер ({manager_login}) пока не зарегистрирован в Telegram.")
-        print(f"[INFO] Менеджер {manager_login} не зарегистрирован.")
         return
 
     fio = f"{client.get('surname', '')} {client.get('name', '')}".strip()
     office = client.get('officeName', 'не указано')
 
     bot.send_message(manager_id,
-        f"Новое сообщение от клиента:\n\n"
-        f"Имя: {fio}\n"
-        f"Телефон: {phone}\n"
-        f"Точка: {office}\n"
-        f"Telegram ID: {user_id}"
+        f"📩 Новое сообщение от клиента:
+
+"
+        f"👤 Имя: {fio}
+"
+        f"📞 Телефон: {phone}
+"
+        f"🏢 Точка: {office}
+"
+        f"🆔 Telegram ID клиента: {user_id}"
     )
-    bot.send_message(manager_id, f"(Сообщение выше пришло от клиента)")
+    bot.send_message(manager_id, f"(Выше — информация о клиенте)")
 
     links = load_links()
     links[str(user_id)] = manager_id
     links[str(manager_id)] = user_id
     save_links(links)
 
-    bot.send_message(user_id, f"Вы подключены к менеджеру {manager_login} ({office}). Можете продолжить общение.")
-    print(f"[INFO] Чат связан: {user_id} ↔ {manager_id}")
+    bot.send_message(user_id, f"Вы подключены к менеджеру {manager_login} ({office}). Можете начать общение.")
 
 @bot.message_handler(func=lambda m: True)
 def handle_chat(message):
@@ -123,9 +130,7 @@ def handle_chat(message):
     if user_id in links:
         peer_id = links[user_id]
         bot.copy_message(peer_id, message.chat.id, message.message_id)
-        print(f"[INFO] Сообщение от {user_id} переслано к {peer_id}")
     else:
         bot.send_message(message.chat.id, "Сначала отправьте номер телефона через /start.")
-        print(f"[INFO] Неизвестный пользователь: {user_id}")
 
 bot.polling()
