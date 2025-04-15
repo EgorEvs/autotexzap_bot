@@ -84,7 +84,7 @@ def show_clients(message):
     markup = types.InlineKeyboardMarkup()
     for client_id in clients:
         markup.add(types.InlineKeyboardButton(text=f"Клиент {client_id}", callback_data=f"dialog:{client_id}"))
-    
+
     bot.send_message(message.chat.id, "Выберите клиента для диалога:", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("dialog:"))
@@ -96,9 +96,9 @@ def handle_dialog_start(call):
     dialogs[manager_id] = client_id
     save_json_file(dialogs, ACTIVE_DIALOGS)
 
-    bot.send_message(call.message.chat.id, f"✅ Вы перешли в диалог с клиентом {client_id}.
+    bot.send_message(call.message.chat.id, f"""✅ Вы перешли в диалог с клиентом {client_id}.
 Все ваши сообщения теперь будут отправляться ему.
-Напишите /stop чтобы завершить диалог.")
+Напишите /stop чтобы завершить диалог.""")
 
 @bot.message_handler(commands=['stop'])
 def stop_dialog(message):
