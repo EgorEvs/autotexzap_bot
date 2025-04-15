@@ -58,7 +58,7 @@ def start(message):
 
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
-    phone = normalize_phone(message.contact.phone_number)
+    phone = message.contact.phone_number
     user_id = message.chat.id
     client = get_client_info(phone)
 
