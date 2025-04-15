@@ -94,6 +94,12 @@ def handle_contact(message):
     managers = load_managers()
     manager_id = managers.get(manager_login)
 
+    old_links = load_links()
+    old_manager_id = old_links.get(str(user_id))
+    if old_manager_id and old_manager_id != manager_id:
+        bot.send_message(old_manager_id,
+            f"⚠️ Клиент {phone} теперь прикреплён к другому менеджеру: {manager_login}")
+
     if not manager_id:
         bot.send_message(user_id, f"Менеджер ({manager_login}) пока не зарегистрирован в Telegram.")
         return
@@ -115,10 +121,9 @@ def handle_contact(message):
     )
     bot.send_message(manager_id, f"(Выше — информация о клиенте)")
 
-    links = load_links()
-    links[str(user_id)] = manager_id
-    links[str(manager_id)] = user_id
-    save_links(links)
+    old_links[str(user_id)] = manager_id
+    old_links[str(manager_id)] = user_id
+    save_links(old_links)
 
     bot.send_message(user_id, f"Вы подключены к менеджеру {manager_login} ({office}). Можете начать общение.")
 
