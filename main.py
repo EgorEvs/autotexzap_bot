@@ -1,5 +1,6 @@
 import os
 import json
+import traceback
 from flask import Flask, request
 import telebot
 
@@ -33,30 +34,34 @@ def normalize_phone(phone):
 
 @app.route("/status_notify", methods=["POST"])
 def status_notify():
-    data = request.json
-    phone = normalize_phone(data.get("phone", ""))
-    order_id = data.get("order_id", "")
-    status = data.get("status", "").strip()
+    try:
+        data = request.json
+        phone = normalize_phone(data.get("phone", ""))
+        order_id = data.get("order_id", "")
+        status = data.get("status", "").strip()
 
-    links = load_links()
-    chat_id = links.get(phone)
+        links = load_links()
+        chat_id = links.get(phone)
 
-    if not chat_id:
-        return {"status": "error", "message": "Клиент не найден"}, 404
+        if not chat_id:
+            return {"status": "error", "message": "Клиент не найден"}, 404
 
-    if status == "Готов к выдаче":
-        text = f"📦 Ваш заказ №{order_id} готов к выдаче. Срок хранения — 7 дней."
-    elif status == "Выдано":
-        text = f"✅ Заказ №{order_id} выдан. Вы можете вернуть товар в течение 7 дней."
-    elif status == "Готово к выдаче 3 дня":
-        text = f"🕒 Ваш заказ №{order_id} всё ещё ждёт вас на пункте выдачи."
-    elif status in ["Отказ клиента", "Отказ поставщика"]:
-        text = f"❗ Заказ №{order_id} отменён ({status}). Подробности уточните у менеджера."
-    else:
-        return {"status": "ignored", "message": "Статус не поддерживается"}, 200
+        if status == "Готов к выдаче":
+            text = f"📦 Ваш заказ №{order_id} готов к выдаче. Срок хранения — 7 дней."
+        elif status == "Выдано":
+            text = f"✅ Заказ №{order_id} выдан. Вы можете вернуть товар в течение 7 дней."
+        elif status == "Готово к выдаче 3 дня":
+            text = f"🕒 Ваш заказ №{order_id} всё ещё ждёт вас на пункте выдачи."
+        elif status in ["Отказ клиента", "Отказ поставщика"]:
+            text = f"❗ Заказ №{order_id} отменён ({status}). Подробности уточните у менеджера."
+        else:
+            return {"status": "ignored", "message": "Статус не поддерживается"}, 200
 
-    bot.send_message(chat_id, text)
-    return {"status": "sent"}
+        bot.send_message(chat_id, text)
+        return {"status": "sent"}
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}, 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
