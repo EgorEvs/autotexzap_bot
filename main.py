@@ -1,10 +1,12 @@
 import os
 import json
-import traceback
-from flask import Flask, request
+import requests
 import telebot
+from flask import Flask, request
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+API_TOKEN = os.getenv("API_TOKEN")
+API_URL = "https://www.autotechnik.store/api/v1/customers/"
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
@@ -17,20 +19,22 @@ def save_links(data):
     with open(LINKS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-@app.route("/register", methods=["POST"])
-def register():
-    data = request.json
-    phone = normalize_phone(data.get("phone", ""))
-    chat_id = data.get("chat_id")
-    if not phone or not chat_id:
-        return {"status": "error", "message": "phone and chat_id required"}, 400
-    links = load_links()
-    links[phone] = chat_id
-    save_links(links)
-    return {"status": "ok"}
-
 def normalize_phone(phone):
-    return phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "").replace("+7", "8").strip()
+    phone = phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    if phone.startswith("+7"):
+        return phone
+    elif phone.startswith("8"):
+        return "+7" + phone[1:]
+    elif phone.startswith("7"):
+        return "+7" + phone[1:]
+    return phone
+
+def get_client_by_phone(phone):
+    response = requests.get(API_URL, params={"token": API_TOKEN, "phone": phone})
+    try:
+        return response.json().get("result", [None])[0]
+    except:
+        return None
 
 @app.route("/status_notify", methods=["POST"])
 def status_notify():
@@ -40,12 +44,18 @@ def status_notify():
         order_id = data.get("order_id", "")
         status = data.get("status", "").strip()
 
+        client = get_client_by_phone(phone)
+        if not client:
+            return {"status": "error", "message": "Клиент не найден через API"}, 404
+
+        login = client.get("managerLogin")
         links = load_links()
-        chat_id = links.get(phone)
+        chat_id = links.get(login)
 
         if not chat_id:
-            return {"status": "error", "message": "Клиент не найден"}, 404
+            return {"status": "error", "message": f"Telegram ID для логина {login} не найден"}, 404
 
+        # шаблоны сообщений
         if status == "Готов к выдаче":
             text = f"📦 Ваш заказ №{order_id} готов к выдаче. Срок хранения — 7 дней."
         elif status == "Выдано":
@@ -55,12 +65,11 @@ def status_notify():
         elif status in ["Отказ клиента", "Отказ поставщика"]:
             text = f"❗ Заказ №{order_id} отменён ({status}). Подробности уточните у менеджера."
         else:
-            return {"status": "ignored", "message": "Статус не поддерживается"}, 200
+            return {"status": "ignored", "message": "Статус не обрабатывается"}, 200
 
         bot.send_message(chat_id, text)
         return {"status": "sent"}
     except Exception as e:
-        traceback.print_exc()
         return {"status": "error", "message": str(e)}, 500
 
 if __name__ == "__main__":
